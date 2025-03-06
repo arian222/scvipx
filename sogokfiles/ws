@@ -9,211 +9,210 @@ import getopt
 import socket
 import threading
 
-PASS = ''
-BUFLEN = 4096 * 4
-TIMEOUT = 60
-RESPONSE = b'HTTP/1.1 101 <b><font color="green">SERVER CONNECTED</font>\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: foo\r\n\r\n'
+PAROLA = ''
+DIMENSIUNE_BUFFER = 4096 * 4
+EXPIRARE_CONEXIUNE = 60
+RĂSPUNS = b'HTTP/1.1 101 <b><font color="green">SERVER CONECTAT</font>\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: foo\r\n\r\n'
 
 class Server(threading.Thread):
-    def __init__(self, listen_port, target_host, target_port, verbose):
+    def __init__(self, port_ascultare, gazdă_destinație, port_destinație, detaliat):
         threading.Thread.__init__(self)
-        self.listen_port = listen_port
-        self.target_host = target_host
-        self.target_port = target_port
-        self.verbose = verbose
-        self.running = False
-        self.connections = []
-        self.connections_lock = threading.Lock()
+        self.port_ascultare = port_ascultare
+        self.gazdă_destinație = gazdă_destinație
+        self.port_destinație = port_destinație
+        self.detaliat = detaliat
+        self.rulează = False
+        self.conexiuni = []
+        self.lock_conexiuni = threading.Lock()
         self.sock = None
 
     def run(self):
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.sock.bind(("0.0.0.0", self.listen_port))
+            self.sock.bind(("0.0.0.0", self.port_ascultare))
             self.sock.listen(5)
-            self.sock.settimeout(TIMEOUT)
-            self.running = True
-            self.log(f"Server started on port {self.listen_port} -> Target: {self.target_host}:{self.target_port}")
+            self.sock.settimeout(EXPIRARE_CONEXIUNE)
+            self.rulează = True
+            self.log(f"Server pornit pe portul {self.port_ascultare} -> Destinație: {self.gazdă_destinație}:{self.port_destinație}")
 
-            while self.running:
+            while self.rulează:
                 try:
                     client_socket, addr = self.sock.accept()
-                    self.log(f"Accepted connection from {addr}")
-                    handler = ConnectionHandler(client_socket, self.target_host, self.target_port, self.listen_port, self.verbose)
+                    self.log(f"Conexiune acceptată de la {addr}")
+                    handler = ManipulatorConexiune(client_socket, self.gazdă_destinație, self.port_destinație, self.port_ascultare, self.detaliat)
                     handler.start()
-                    self.add_connection(handler)
+                    self.adaugă_conexiune(handler)
                 except socket.timeout:
                     continue
-                    
                 except Exception as e:
-                    self.log(f"[ERROR] Error accepting connection: {e}")
+                    self.log(f"[EROARE] Eroare la acceptarea conexiunii: {e}")
         except Exception as e:
-            self.log(f"[ERROR] Server error: {e}")
+            self.log(f"[EROARE] Eroare server: {e}")
         finally:
-            self.close()
+            self.închide()
 
-    def add_connection(self, conn):
-        with self.connections_lock:
-            self.connections.append(conn)
+    def adaugă_conexiune(self, conexiune):
+        with self.lock_conexiuni:
+            self.conexiuni.append(conexiune)
 
-    def remove_connection(self, conn):
-        with self.connections_lock:
-            if conn in self.connections:
-                self.connections.remove(conn)
+    def elimină_conexiune(self, conexiune):
+        with self.lock_conexiuni:
+            if conexiune in self.conexiuni:
+                self.conexiuni.remove(conexiune)
 
-    def close(self):
-        self.running = False
+    def închide(self):
+        self.rulează = False
         if self.sock:
             try:
                 self.sock.close()
             except Exception as e:
-                self.log(f"[ERROR] Failed to close socket: {e}")
+                self.log(f"[EROARE] Nu s-a putut închide socket-ul: {e}")
 
-        with self.connections_lock:
-            for conn in self.connections:
-                conn.close()
-        self.log(f"Server on port {self.listen_port} stopped.")
+        with self.lock_conexiuni:
+            for conexiune in self.conexiuni:
+                conexiune.închide()
+        self.log(f"Serverul pe portul {self.port_ascultare} a fost oprit.")
 
-    def log(self, message):
-        if self.verbose:
-            print(f"[Server {self.listen_port}] {message}")
+    def log(self, mesaj):
+        if self.detaliat:
+            print(f"[Server {self.port_ascultare}] {mesaj}")
 
 
-class ConnectionHandler(threading.Thread):
-    def __init__(self, client_socket, target_host, target_port, listen_port, verbose):
+class ManipulatorConexiune(threading.Thread):
+    def __init__(self, client_socket, gazdă_destinație, port_destinație, port_ascultare, detaliat):
         threading.Thread.__init__(self)
         self.client_socket = client_socket
-        self.target_host = target_host
-        self.target_port = target_port
-        self.listen_port = listen_port
-        self.verbose = verbose
+        self.gazdă_destinație = gazdă_destinație
+        self.port_destinație = port_destinație
+        self.port_ascultare = port_ascultare
+        self.detaliat = detaliat
         self.target_socket = None
-        self.client_closed = False
-        self.target_closed = True
+        self.client_închis = False
+        self.target_închis = True
 
-    def close(self):
-        if not self.client_closed:
+    def închide(self):
+        if not self.client_închis:
             try:
                 self.client_socket.shutdown(socket.SHUT_RDWR)
                 self.client_socket.close()
             except:
                 pass
             finally:
-                self.client_closed = True
+                self.client_închis = True
 
-        if not self.target_closed:
+        if not self.target_închis:
             try:
                 self.target_socket.shutdown(socket.SHUT_RDWR)
                 self.target_socket.close()
             except:
                 pass
             finally:
-                self.target_closed = True
+                self.target_închis = True
 
     def run(self):
         try:
-            self.target_socket = socket.create_connection((self.target_host, self.target_port), timeout=TIMEOUT)
-            self.target_closed = False
-            self.log(f"Connected to target {self.target_host}:{self.target_port}")
-            self.client_socket.sendall(RESPONSE)
-            self.forward_data()
+            self.target_socket = socket.create_connection((self.gazdă_destinație, self.port_destinație), timeout=EXPIRARE_CONEXIUNE)
+            self.target_închis = False
+            self.log(f"Conectat la destinație {self.gazdă_destinație}:{self.port_destinație}")
+            self.client_socket.sendall(RĂSPUNS)
+            self.redirecționează_date()
         except Exception as e:
-            self.log(f"[ERROR] Error handling connection: {e}")
+            self.log(f"[EROARE] Eroare la manipularea conexiunii: {e}")
         finally:
-            self.close()
+            self.închide()
 
-    def forward_data(self):
-        sockets = [self.client_socket, self.target_socket]
+    def redirecționează_date(self):
+        socketuri = [self.client_socket, self.target_socket]
         while True:
             try:
-                ready_to_read, _, _ = select.select(sockets, [], [], TIMEOUT)
-                for sock in ready_to_read:
-                    data = sock.recv(BUFLEN)
-                    if data:
+                gata_de_citit, _, _ = select.select(socketuri, [], [], EXPIRARE_CONEXIUNE)
+                for sock in gata_de_citit:
+                    date = sock.recv(DIMENSIUNE_BUFFER)
+                    if date:
                         if sock is self.client_socket:
-                            self.target_socket.sendall(data)
-                            self.log(f":{self.listen_port}: >>>> {len(data)} bytes sent")
+                            self.target_socket.sendall(date)
+                            self.log(f":{self.port_ascultare}: >>>> {len(date)} octeți trimiși")
                         else:
-                            self.client_socket.sendall(data)
-                            self.log(f":{self.listen_port}: <<<< {len(data)} bytes received")
+                            self.client_socket.sendall(date)
+                            self.log(f":{self.port_ascultare}: <<<< {len(date)} octeți primiți")
                     else:
                         return
             except socket.timeout:
-                self.log("[ERROR] Forwarding timeout!")
+                self.log("[EROARE] Timpul de așteptare pentru redirecționare a expirat!")
                 return
             except Exception as e:
-                self.log(f"[ERROR] Forwarding error: {e}")
+                self.log(f"[EROARE] Eroare de redirecționare: {e}")
                 return
 
-    def log(self, message):
-        if self.verbose:
-            print(f"[Connection {self.target_host}:{self.target_port}] {message}")
+    def log(self, mesaj):
+        if self.detaliat:
+            print(f"[Conexiune {self.gazdă_destinație}:{self.port_destinație}] {mesaj}")
 
 
-def parse_args(argv):
-    config_file = None
+def analizează_argumente(argv):
+    fișier_config = None
     try:
-        opts, _ = getopt.getopt(argv, "f:", ["file="])
-        for opt, arg in opts:
+        opțiuni, _ = getopt.getopt(argv, "f:", ["file="])
+        for opt, arg in opțiuni:
             if opt in ("-f", "--file"):
-                config_file = arg
+                fișier_config = arg
     except:
-        print("Usage: python3 ws -f <tun.conf>")
+        print("Utilizare: python3 ws -f <tun.conf>")
         sys.exit(2)
-    return config_file
+    return fișier_config
 
 
-def load_config(config_file):
+def încarcă_configurație(fișier_config):
     try:
-        with open(config_file, "r") as file:
+        with open(fișier_config, "r") as file:
             return yaml.safe_load(file)
     except Exception as e:
-        print(f"[ERROR] Failed to load configuration file: {e}")
+        print(f"[EROARE] Eșec la încărcarea fișierului de configurație: {e}")
         sys.exit(1)
 
 
-def signal_handler(sig, frame):
-    print("\nReceived interrupt signal. Stopping servers...")
-    for server in servers:
-        server.close()
+def semnal_handler(sig, frame):
+    print("\nSemnal de întrerupere primit. Oprirea serverelor...")
+    for server in servere:
+        server.închide()
     sys.exit(0)
 
 
-def main(config_file):
-    global servers
-    config = load_config(config_file)
-    verbose = config.get("verbose", 0)
-    listeners = config.get("listen", [])
+def main(fișier_config):
+    global servere
+    config = încarcă_configurație(fișier_config)
+    detaliat = config.get("verbose", 0)
+    ascultători = config.get("listen", [])
 
-    if not listeners:
-        print("[ERROR] No listening configuration found.")
+    if not ascultători:
+        print("[EROARE] Nu s-a găsit nicio configurație de ascultare.")
         sys.exit(1)
 
-    servers = []
-    for listener in listeners:
-        target_host = listener.get("target_host")
-        target_port = listener.get("target_port")
-        listen_port = listener.get("listen_port")
+    servere = []
+    for ascultător in ascultători:
+        gazdă_destinație = ascultător.get("target_host")
+        port_destinație = ascultător.get("target_port")
+        port_ascultare = ascultător.get("listen_port")
 
-        if not target_host or not target_port or not listen_port:
-            print(f"[ERROR] Invalid configuration entry: {listener}")
+        if not gazdă_destinație or not port_destinație or not port_ascultare:
+            print(f"[EROARE] Configurație invalidă: {ascultător}")
             continue
 
-        server = Server(listen_port, target_host, target_port, verbose)
-        servers.append(server)
+        server = Server(port_ascultare, gazdă_destinație, port_destinație, detaliat)
+        servere.append(server)
         server.start()
 
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, semnal_handler)
+    signal.signal(signal.SIGTERM, semnal_handler)
 
     while True:
         time.sleep(3)
 
 
 if __name__ == "__main__":
-    config_file = parse_args(sys.argv[1:])
-    if not config_file:
-        print("Usage: python3 ws -f <tun.conf>")
+    fișier_config = analizează_argumente(sys.argv[1:])
+    if not fișier_config:
+        print("Utilizare: python3 ws -f <tun.conf>")
         sys.exit(1)
-    main(config_file)
+    main(fișier_config)
