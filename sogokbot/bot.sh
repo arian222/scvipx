@@ -1,5 +1,5 @@
 #!/bin/bash
-# https://t.me/gemilangkinasih
+# https://t.me/alecss12
 
 rm -rf "$0"
 rm -rf bot.sh
