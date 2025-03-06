@@ -1,0 +1,68 @@
+#!/bin/bash
+
+CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+TIME="10"
+URL="https://api.telegram.org/bot$KEY/sendMessage"
+ISP=$(cat /etc/xray/isp)
+CITY=$(cat /etc/xray/city)
+domain=$(cat /etc/xray/domain)
+IP=$(cat /etc/xray/ipvps)
+MYIP=$(cat /etc/xray/ipvps)
+
+read -p "Username  : " Login
+read -p "Set Menit : " pup
+
+hari="1"
+Pass=1
+clear
+tgl=$(date -d "$masaaktif days" +"%d")
+bln=$(date -d "$masaaktif days" +"%b")
+thn=$(date -d "$masaaktif days" +"%Y")
+expe="$tgl $bln, $thn"
+tgl2=$(date +"%d")
+bln2=$(date +"%b")
+thn2=$(date +"%Y")
+tnggl="$tgl2 $bln2, $thn2"
+useradd -e `date -d "$masaaktif days" +"%Y-%m-%d"` -s /bin/false -M $Login
+exp="$(chage -l $Login | grep "Account expires" | awk -F": " '{print $2}')"
+hariini=`date -d "0 days" +"%Y-%m-%d"`
+expi=`date -d "$masaaktif days" +"%Y-%m-%d"`
+echo -e "$Pass\n$Pass\n"|passwd $Login &> /dev/null
+
+mkdir -p /etc/ssh
+
+if [[ ${c} != "0" ]]; then
+  echo "${d}" >/etc/ssh/${Login}
+fi
+DATADB=$(cat /etc/ssh/.ssh.db | grep "^#&#" | grep -w "${Login}" | awk '{print $2}')
+if [[ "${DATADB}" != '' ]]; then
+  sed -i "/\b${Login}\b/d" /etc/ssh/.ssh.db
+fi
+echo "#&# ${Login} ${Pass} ${pup}" >>/etc/ssh/.ssh.db
+
+cat > /var/www/html/ssh-$Login.txt <<-END
+----------------------
+Status Trial SSHWS Success
+----------------------
+ISP   : $ISP
+City  : $CITY
+----------------------
+Host  : $domain
+User  : $Login
+pw    : $Pass
+Max   : $iplimit IP
+Port  : 443, 80, 1-65535
+----------------------
+SSL   : $domain:443@$Login:$Pass
+----------------------
+WS    : $domain:80@$Login:$Pass
+----------------------
+UDP   : $domain:1-65535@$Login:$Pass
+----------------------
+Exp   : $pup Menit
+----------------------
+END
+
+echo userdel -f "$Login" | at now + $pup minutes
+echo "tunnel ssh ${Login}" | at now +$pup minutes &> /dev/null

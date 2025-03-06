@@ -1,0 +1,175 @@
+#!/bin/bash
+
+BICyan='\033[1;96m'       # Cyan
+BIWhite='\033[1;97m'      # White
+UWhite='\033[4;37m'       # White
+BIYellow='\033[1;93m'     # Yellow
+BGWHITE='\E[40;1;37m'     # Bgwhite
+
+RED="\033[31m"
+NC='\e[0m'
+GREEN='\033[0;32m'
+ORANGE='\033[0;33m'
+YELL='\033[0;33m'
+
+CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+TIME="10"
+URL="https://api.telegram.org/bot$KEY/sendMessage"
+clear
+ISP=$(cat /etc/xray/isp)
+CITY=$(cat /etc/xray/city)
+MYIP=$(cat /etc/xray/ipvps)
+IP=$(cat /etc/xray/ipvps)
+domain=$(cat /etc/xray/domain)
+
+read -p "Username : " user
+read -p "Limit Ip : " iplimit
+read -p "MaxQuota : " Quota
+read -p "Expireed : " masaaktif
+
+if grep -qw "$user" /etc/xray/config.json; then
+    echo -e "Username sudah terpakai."
+    exit 0
+fi
+
+generateRandomString() {
+    # Generate string acak menggunakan /dev/urandom
+    string=$(LC_CTYPE=C tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w "$1" | head -n 1)
+    # Return string acak
+    echo "xrayvmess$string"
+}
+
+# Panggil fungsi generateRandomString dengan panjang 15 karakter
+uuid=$(generateRandomString 15)
+tgl=$(date -d "$masaaktif days" +"%d")
+bln=$(date -d "$masaaktif days" +"%b")
+thn=$(date -d "$masaaktif days" +"%Y")
+expe="$tgl $bln, $thn"
+tgl2=$(date +"%d")
+bln2=$(date +"%b")
+thn2=$(date +"%Y")
+tnggl="$tgl2 $bln2, $thn2"
+exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
+sed -i '/#vmess$/a\### '"$user $exp"'\
+},{"id": "'""$uuid""'","alterId": '"0"',"email": "'""$user""'"' /etc/xray/config.json
+exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
+sed -i '/#vmessgrpc$/a\### '"$user $exp"'\
+},{"id": "'""$uuid""'","alterId": '"0"',"email": "'""$user""'"' /etc/xray/config.json
+
+asu=`cat<<EOF
+      {
+      "v": "2",
+      "ps": "${user}",
+      "add": "${domain}",
+      "port": "443",
+      "id": "${uuid}",
+      "aid": "0",
+      "net": "ws",
+      "path": "/vmess",
+      "type": "none",
+      "host": "${domain}",
+      "tls": "tls"
+}
+EOF`
+ask=`cat<<EOF
+      {
+      "v": "2",
+      "ps": "${user}",
+      "add": "${domain}",
+      "port": "80",
+      "id": "${uuid}",
+      "aid": "0",
+      "net": "ws",
+      "path": "/vmess",
+      "type": "none",
+      "host": "${domain}",
+      "tls": "none"
+}
+EOF`
+grpc=`cat<<EOF
+      {
+      "v": "2",
+      "ps": "${user}",
+      "add": "${domain}",
+      "port": "443",
+      "id": "${uuid}",
+      "aid": "0",
+      "net": "grpc",
+      "path": "vmess-grpc",
+      "type": "none",
+      "host": "${domain}",
+      "tls": "tls"
+}
+EOF`
+
+vmess_base641=$( base64 -w 0 <<< $vmess_json1)
+vmess_base642=$( base64 -w 0 <<< $vmess_json2)
+vmess_base643=$( base64 -w 0 <<< $vmess_json3)
+vmesslink1="vmess://$(echo $asu | base64 -w 0)"
+vmesslink2="vmess://$(echo $ask | base64 -w 0)"
+vmesslink3="vmess://$(echo $grpc | base64 -w 0)"
+
+cat > /var/www/html/vmess-$user.txt <<-END
+----------------------
+Status Create VMESS Success
+----------------------
+ISP   : $ISP
+City  : $CITY
+----------------------
+Host  : $domain
+User  : $user
+UUID  : $uuid
+Max   : $iplimit IP
+Quota : $Quota GB
+Port  : 443, 80
+Path  : /vmess
+----------------------
+Tls   : $vmesslink1
+----------------------
+nTls  : $vmesslink2
+----------------------
+Grpc  : $vmesslink3
+----------------------
+Exp   : $expe
+----------------------
+END
+
+if [ ! -e /etc/vmess ]; then
+  mkdir -p /etc/vmess
+fi
+
+if [[ $iplimit -gt 0 ]]; then
+mkdir -p /etc/kyt/limit/vmess/ip
+echo -e "$iplimit" > /etc/kyt/limit/vmess/ip/$user
+else
+echo > /dev/null
+fi
+
+if [ -z ${Quota} ]; then
+  Quota="0"
+fi
+
+c=$(echo "${Quota}" | sed 's/[^0-9]*//g')
+d=$((${c} * 1024 * 1024 * 1024))
+
+if [[ ${c} != "0" ]]; then
+  echo "${d}" >/etc/vmess/${user}
+fi
+DATADB=$(cat /etc/vmess/.vmess.db | grep "^###" | grep -w "${user}" | awk '{print $2}')
+if [[ "${DATADB}" != '' ]]; then
+  sed -i "/\b${user}\b/d" /etc/vmess/.vmess.db
+fi
+echo "### ${user} ${exp} ${uuid} ${Quota} ${iplimit}" >>/etc/vmess/.vmess.db
+systemctl restart xray > /dev/null 2>&1
+clear
+
+echo "$ISP"
+echo "$CITY"
+echo "$domain"
+echo "$user"
+echo "$uuid"
+echo "$vmesslink1"
+echo "$vmesslink2"
+echo "$vmesslink3"
+echo "$expe"

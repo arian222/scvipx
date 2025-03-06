@@ -1,0 +1,57 @@
+#!/bin/bash
+
+CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+TIME="10"
+URL="https://api.telegram.org/bot$KEY/sendMessage"
+IP=$(curl -sS ipv4.icanhazip.com)
+domain=$(cat /etc/xray/domain)
+date=$(date +"%Y-%m-%d")
+cd /root
+rm -rf /root/backup
+mkdir -p /root/backup/ > /dev/null 2>&1
+mkdir -p /root/backup/xray/ > /dev/null 2>&1
+mkdir -p /root/backup/html/ > /dev/null 2>&1
+mkdir -p /root/backup/limit/ssh/ip > /dev/null 2>&1
+mkdir -p /root/backup/limit/vmess/ip > /dev/null 2>&1
+mkdir -p /root/backup/limit/vless/ip > /dev/null 2>&1
+mkdir -p /root/backup/limit/trojan/ip > /dev/null 2>&1
+mkdir -p /root/backup/quota/vmess > /dev/null 2>&1
+mkdir -p /root/backup/quota/vless > /dev/null 2>&1
+mkdir -p /root/backup/quota/trojan > /dev/null 2>&1
+mkdir -p /root/backup/quotax/vmess > /dev/null 2>&1
+mkdir -p /root/backup/quotax/vless > /dev/null 2>&1
+mkdir -p /root/backup/quotax/trojan > /dev/null 2>&1
+cp /etc/passwd /root/backup/ 
+cp /etc/group /root/backup/ 
+cp /etc/shadow /root/backup/ 
+cp /etc/gshadow /root/backup/ 
+cp -r /etc/kyt/limit/ssh/ip/* /root/backup/limit/ssh/ip > /dev/null 2>&1
+cp -r /etc/kyt/limit/vmess/ip/* /root/backup/limit/vmess/ip > /dev/null 2>&1
+cp -r /etc/kyt/limit/vless/ip/* /root/backup/limit/vless/ip > /dev/null 2>&1
+cp -r /etc/kyt/limit/trojan/ip/* /root/backup/limit/trojan/ip > /dev/null 2>&1
+cp -r /etc/vmess/* /root/backup/quota/vmess > /dev/null 2>&1
+cp -r /etc/vless/* /root/backup/quota/vless > /dev/null 2>&1
+cp -r /etc/trojan/* /root/backup/quota/trojan > /dev/null 2>&1
+cp -r /etc/limit/vmess/* /root/backup/quotax/vmess > /dev/null 2>&1
+cp -r /etc/limit/vless/* /root/backup/quotax/vless > /dev/null 2>&1
+cp -r /etc/limit/trojan/* /root/backup/quotax/trojan > /dev/null 2>&1
+cp /etc/xray/*.json /root/backup/xray/
+cp /var/www/html/*.txt /root/backup/html/ > /dev/null 2>&1
+cp -r /etc/ssh/.ssh.db /root/backup/.ssh.db > /dev/null 2>&1
+cp -r /etc/vmess/.vmess.db /root/backup/.vmess.db > /dev/null 2>&1
+cp -r /etc/vless/.vless.db /root/backup/.vless.db > /dev/null 2>&1 
+cp -r /etc/trojan/.trojan.db /root/backup/.trojan.db > /dev/null 2>&1
+sed -i '/^#&/d' /root/backup/.ssh.db > /dev/null 2>&1
+sed -i '/^#&/d' /root/backup/.vmess.db > /dev/null 2>&1
+sed -i '/^#&/d' /root/backup/.vless.db > /dev/null 2>&1
+sed -i '/^#&/d' /root/backup/.trojan.db > /dev/null 2>&1
+cd /root
+zip -r $IP-$date.zip backup > /dev/null 2>&1
+rclone copy /root/$IP-$date.zip dr:backup/
+url=$(rclone link dr:backup/$IP-$date.zip)
+id=(`echo $url | grep '^https' | cut -d'=' -f2`)
+link="https://drive.google.com/u/4/uc?id=${id}&export=download"
+rm -rf /root/backup > /dev/null 2>&1
+rm -r /root/$IP-$date.zip > /dev/null 2>&1
+echo -e "$link"

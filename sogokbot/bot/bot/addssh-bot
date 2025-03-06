@@ -1,0 +1,94 @@
+#!/bin/bash
+
+BICyan='\033[1;96m'       # Cyan
+BIWhite='\033[1;97m'      # White
+UWhite='\033[4;37m'       # White
+BIYellow='\033[1;93m'     # Yellow
+BGWHITE='\E[40;1;37m'     # Bgwhite
+
+RED="\033[31m"
+NC='\e[0m'
+GREEN='\033[0;32m'
+ORANGE='\033[0;33m'
+YELL='\033[0;33m'
+
+# Getting
+CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+TIME="10"
+URL="https://api.telegram.org/bot$KEY/sendMessage"
+IP=$(cat /etc/xray/ipvps)
+ISP=$(cat /etc/xray/isp)
+CITY=$(cat /etc/xray/city)
+domain=$(cat /etc/xray/domain)
+
+clear
+read -p "Username : " Login
+read -p "Password : " Pass
+read -p "Limit Ip : " iplimit
+read -p "Expireed : " masaaktif
+
+if grep -qw "$Login" /etc/passwd; then
+    echo -e "Username sudah terpakai."
+    exit 0
+fi
+
+# limitip
+if [[ $iplimit -gt 0 ]]; then
+mkdir -p /etc/kyt/limit/ssh/ip
+echo -e "$iplimit" > /etc/kyt/limit/ssh/ip/$Login
+else
+echo > /dev/null
+fi
+clear
+
+tgl=$(date -d "$masaaktif days" +"%d")
+bln=$(date -d "$masaaktif days" +"%b")
+thn=$(date -d "$masaaktif days" +"%Y")
+expe="$tgl $bln, $thn"
+tgl2=$(date +"%d")
+bln2=$(date +"%b")
+thn2=$(date +"%Y")
+tnggl="$tgl2 $bln2, $thn2"
+useradd -e `date -d "$masaaktif days" +"%Y-%m-%d"` -s /bin/false -M $Login
+expi="$(chage -l $Login | grep "Account expires" | awk -F": " '{print $2}')"
+echo -e "$Pass\n$Pass\n"| passwd $Login &> /dev/null
+hariini=`date -d "0 days" +"%Y-%m-%d"`
+expi=`date -d "$masaaktif days" +"%Y-%m-%d"`
+
+DATADB=$(cat /etc/ssh/.ssh.db | grep "^###" | grep -w "${Login}" | awk '{print $2}')
+if [[ "${DATADB}" != '' ]]; then
+  sed -i "/\b${Login}\b/d" /etc/ssh/.ssh.db
+fi
+echo "### ${Login} ${expe} ${Pass} ${iplimit}" >>/etc/ssh/.ssh.db
+
+cat > /var/www/html/ssh-$Login.txt <<-END
+----------------------
+Status Create SSHWS Success
+----------------------
+ISP   : $ISP
+City  : $CITY
+----------------------
+Host  : $domain
+User  : $Login
+pw    : $Pass
+Max   : $iplimit IP
+Port  : 443, 80, 1-65535
+----------------------
+SSL   : $domain:443@$Login:$Pass
+----------------------
+WS    : $domain:80@$Login:$Pass
+----------------------
+UDP   : $domain:1-65535@$Login:$Pass
+----------------------
+Exp   : $expe
+----------------------
+END
+
+clear
+echo "$ISP"
+echo "$CITY"
+echo "$domain"
+echo "$Login"
+echo "$Pass"
+echo "$expe"
