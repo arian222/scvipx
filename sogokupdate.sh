@@ -1,5 +1,5 @@
 #!/bin/bash
-# https://t.me/gemilangkinasih
+# https://t.me/Alecss12
 
 rm -rf "$0" 2>/dev/null
 rm -rf sogokupdate.sh 2>/dev/null
