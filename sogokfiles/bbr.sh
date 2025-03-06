@@ -1,5 +1,5 @@
 #!/bin/bash
-# https://t.me/gemilangkinasih
+# https://t.me/alecss12
 
 rm -rf "$0"
 
@@ -28,7 +28,7 @@ Check_And_Add_Line(){
 
 Install_BBR(){
 echo -e "\e[33m──────────────────────────────────────────\033[0m"
-echo -e "\e[32;1mInstalasi TCP BBR...\e[0m"
+echo -e "\e[32;1mInstall TCP BBR...\e[0m"
 if [ -n "$(lsmod | grep bbr)" ];then
 echo -e "\e[0;32mSuccesfully Installed TCP BBR\e[0m"
 echo -e "\e[33m──────────────────────────────────────────\033[0m"
