@@ -1,5 +1,5 @@
 #!/bin/bash
-# https://t.me/gemilangkinasih
+# https://t.me/alecss12
 
 function send-log() {
 CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
@@ -9,7 +9,7 @@ TIME="10"
 URL="https://api.telegram.org/bot$KEY/sendMessage"
 TEXT="
 ──────────────────────
-🚫 Notifikasi Limit Quota VLESS
+🚫 Notificare Limit Quota VLESS
 ──────────────────────
 <code>User  :</code> <code>$user</code>
 <code>Usage :</code> <code>$total</code>
@@ -36,7 +36,7 @@ function con() {
 }
 
 while true; do
-    echo "Memulai proses monitoring VLESS."
+    echo "Starting the VLESS monitoring process."
     sleep 30
 
     data=($(cat /etc/xray/config.json | grep '^#&' | cut -d ' ' -f 2 | sort | uniq))
@@ -45,7 +45,7 @@ while true; do
     fi
 
     for user in "${data[@]}"; do
-        echo "Proses menjalankan username: $user."
+        echo "Process of running username: $user."
         xray api stats --server=127.0.0.1:10000 -name "user>>>${user}>>>traffic>>>downlink" >& /tmp/${user}
         getThis=$(cat /tmp/${user} | awk '{print $1}')
 
@@ -61,10 +61,10 @@ while true; do
                 xray api stats --server=127.0.0.1:10000 -name "user>>>${user}>>>traffic>>>downlink" -reset >/dev/null 2>&1
             fi
         else
-            echo "Gagal mendapatkan data untuk user: $user"
+            echo "Failed to get data for user: $user"
         fi
 
-        echo "Lanjut."
+        echo "Carry on."
         sleep 2
     done
 
@@ -86,12 +86,12 @@ while true; do
             total=$(con ${Usage})
             total2=$(con ${checkLimit})
 
-            echo "Memproses User : [Usage: $total, Limit: $total2] $user"
+            echo "Processing User : [Usage: $total, Limit: $total2] $user"
             if [[ ${Usage} -gt ${checkLimit} ]]; then
                 exp=$(grep -w "^#& $user" "/etc/xray/config.json" | cut -d ' ' -f 3 | sort | uniq)
                 uuid=$(grep -w "^#& $user $exp" -A 1 "/etc/xray/config.json" | awk -F'"' '/"id":/ {print $4}' | sort | uniq)
                 if [[ -z $exp || -z $uuid ]]; then
-                    echo "User $user memiliki exp atau UUID kosong. Melewati."
+                    echo "User $user has an empty exp or UUID. Skip."
                     sleep 5
                     continue
                 fi
@@ -100,7 +100,7 @@ uuid=$(grep -w "^#& $user $exp" -A 1 "/etc/xray/config.json" | awk -F'"' '/"id":
 uuid2=$(grep -w "^#& $user $exp" -A 1 "/etc/xray/config.json" | awk -F'"' '/"id":/ {print $4}' | sed 's/.*\(LOCKED\)/\1/' | sort | uniq)
 
 if [[ "$uuid2" == "LOCKED" ]]; then
-    echo -e "Account $user has been locked, melewati proses."
+    echo -e "Account $user has been locked, go through the process."
     continue
 fi
 
@@ -116,14 +116,14 @@ sed -i '/#vlessgrpc$/a\#& '"$user $exp"'\
                 systemctl restart xray
                 sleep 15
             else
-                echo "User $user masih dalam batas penggunaan."
+                echo "User $user still within the usage limit."
             fi
         else
-            echo "Data $user tidak ditemukan."
+            echo "Data $user not found."
         fi
         echo "Next."
         sleep 2
     done
-    echo "Siklus monitoring selesai. sleep 120 detik!"
+    echo "Monitoring cycle complete. sleep 120 detik!"
     sleep 120
 done
