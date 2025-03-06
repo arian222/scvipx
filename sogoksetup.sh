@@ -1,5 +1,5 @@
 #!/bin/bash
-# https://t.me/gemilangkinasih
+# https://t.me/Alecss12
 
 rm -rf "$0" 2>/dev/null
 rm -rf autoscript 2>/dev/null
@@ -185,7 +185,7 @@ fi
 
 function base_package() {
 clear
-print_install "Instalasi Packet Yang Dibutuhkan"
+print_install "Required Package Installation"
 apt install zip pwgen openssl netcat socat cron bash-completion -y
 apt install figlet -y
 apt update -y
@@ -221,29 +221,29 @@ function pasang_domain() {
     echo -e "▒█░▒█ ▒█░░▒█ ▒█▒█▒█ ▒█▄▄█ ▒█░ ▒█▒█▒█ ▀▀ ▒█░▒█ ▒█▄▄█\033[0m" 
     echo -e "▒█▄▄▀ ▒█▄▄▄█ ▒█░░▒█ ▒█░▒█ ▄█▄ ▒█░░▀█ ░░ ░▀▄▄▀ ▒█░░░\033[0m"
     echo -e "\e[33m───────────────────────────────────────────────────\033[0m"
-    echo -e "1. Use Your Domain - Gunakan Domain Sendiri $NC"
-    echo -e "2. Use Domain Otomatis - Gunakan Domain Otomatis $NC"
+    echo -e "1. Use Your Domain - Use Your Own Domain $NC"
+    echo -e "2. Use Domain Otomatis - Use Automatic Domain.not work!!!!!!! $NC"
     echo -e "\e[33m───────────────────────────────────────────────────\033[0m"
     echo -e ""
 
     while true; do
         read -rp "Input 1 or 2 / Pilih 1 atau 2 : " dns
         if [[ -z "$dns" ]]; then
-            echo "Input kosong, harap pilih yang benar."
+            echo "Input is empty, please select the correct one."
             continue
         fi
 
         if [[ "$dns" -eq 1 ]]; then
             while true; do
-                read -rp "Enter Your Domain / masukan domain : " dom
+                read -rp "Enter Your Domain /  : " dom
                 if [[ -z "$dom" ]]; then
-                    echo "Domain tidak boleh kosong, masukkan domain yang valid."
+                    echo "Domain cannot be empty, enter a valid domain."
                 else
                     echo "$dom" > /root/scdomain 
                     echo "$dom" > /etc/xray/scdomain 
                     echo "$dom" > /etc/xray/domain 
                     echo "$dom" > /root/domain 
-                    print_success "Instalasi Domain"
+                    print_success "Domain Installation"
                     break
                 fi
             done
@@ -254,10 +254,10 @@ function pasang_domain() {
             wget -q -O /root/cf "${REPO}/sogokfiles/cf" >/dev/null 2>&1
             chmod +x /root/cf
             bash /root/cf
-            print_success "Instalasi Domain Random"
+            print_success "Domain Installation Random not work"
             break
         else
-            echo "Input tidak valid, harap pilih 1 atau 2."
+            echo "Invalid input, please select 1 or 2."
             continue 
         fi
     done
@@ -310,7 +310,7 @@ URL="https://api.telegram.org/bot$KEY/sendMessage"
 TIMEZONE=$(printf '%(%H:%M:%S)T')
 TEXT="
 <code>──────────────────────────</code>
-🧿Instalasi Special Autoscript V2.4🧿
+🧿Install Special Autoscript V2.4🧿
 <code>──────────────────────────</code>
 <code>Username :</code> <code>$username</code>
 <code>Domain   :</code> <code>$domain</code>
@@ -331,7 +331,7 @@ curl -s --max-time $TIMES -d "chat_id=$CHATID&disable_web_page_preview=1&text=$T
 # PASANG SSL
 function pasang_ssl() {
 clear
-print_install "Instalasi SSL Pada Domain"
+print_install "SSL Installation On Domain"
 rm -rf /etc/xray/xray.key
 rm -rf /etc/xray/xray.crt
 domain=$(cat /root/domain)
@@ -387,17 +387,17 @@ touch /etc/trojan/.trojan.db
 touch /etc/shadowsocks/.shadowsocks.db
 touch /etc/ssh/.ssh.db
 touch /etc/bot/.bot.db
-echo "& plughin Account" >> /etc/vmess/.vmess.db
-echo "& plughin Account" >> /etc/vless/.vless.db
-echo "& plughin Account" >> /etc/trojan/.trojan.db
-echo "& plughin Account" >> /etc/shadowsocks/.shadowsocks.db
-echo "& plughin Account" >> /etc/ssh/.ssh.db
+echo "& Account plugin" >> /etc/vmess/.vmess.db
+echo "& Account plugin" >> /etc/vless/.vless.db
+echo "& Account plugin" >> /etc/trojan/.trojan.db
+echo "& Account plugint" >> /etc/shadowsocks/.shadowsocks.db
+echo "& Account plugin" >> /etc/ssh/.ssh.db
 echo "Database Log Create User Account" >> /etc/user-create/user.log
 }
 
 function install_xray() {
 clear
-print_install "Instalasi Core Xray 1.8.1 Latest Version"
+print_install "Instalall Core Xray 1.8.1 Latest Version"
 domainSock_dir="/run/xray";! [ -d $domainSock_dir ] && mkdir  $domainSock_dir
 chown www-data.www-data $domainSock_dir
 
@@ -411,7 +411,7 @@ print_success "Core Xray 1.8.1 Latest Version"
 clear
 curl -s ipinfo.io/city > /etc/xray/city
 curl -s ipinfo.io/org | cut -d " " -f 2-10 > /etc/xray/isp
-print_install "Memasang Konfigurasi Packet"
+print_install "Installing Package Configurationt"
 wget -O /etc/haproxy/haproxy.cfg "${REPO}sogokconfig/haproxy.cfg" > /dev/null 2>&1
 wget -O /etc/nginx/conf.d/xray.conf "${REPO}sogokconfig/xray.conf" > /dev/null 2>&1
 sed -i "s/xxx/${domain}/g" /etc/haproxy/haproxy.cfg
@@ -424,7 +424,7 @@ rm -rf /etc/systemd/system/xray.service.d
 cat > /etc/systemd/system/xray.service << EOF
 [Unit]
 Description=Xray Service
-Documentation=https://t.me/gemilangkinasih
+Documentation=https://t.me/Alecss12
 After=network.target nss-lookup.target
 
 [Service]
@@ -441,12 +441,12 @@ LimitNOFILE=1000000
 [Install]
 WantedBy=multi-user.target
 EOF
-print_success "Konfigurasi Packet Xray"  
+print_success "Packet Xray Configuration"  
 }
 
 function ssh(){
 clear
-print_install "Instalasi Password SSH"
+print_install "Install Password SSH"
 wget -O /etc/pam.d/common-password "${REPO}sogokfiles/password"
 chmod +x /etc/pam.d/common-password
 DEBIAN_FRONTEND=noninteractive dpkg-reconfigure keyboard-configuration
@@ -500,12 +500,12 @@ echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
 sed -i '$ i\echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6' /etc/rc.local
 ln -fs /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
 sed -i 's/AcceptEnv/#AcceptEnv/g' /etc/ssh/sshd_config
-print_success "Instalasi Password SSH" 
+print_success "Install Password SSH" 
 }
 
 function udp_mini(){
 clear
-print_install "Instalasi Service Limit IP & Quota"
+print_install "Install Service Limit IP & Quota"
 wget -q ${REPO}sogokconfig/fv-tunnel && chmod +x fv-tunnel && ./fv-tunnel
 
 clear
@@ -528,30 +528,30 @@ systemctl disable udp-mini-3
 systemctl stop udp-mini-3
 systemctl enable udp-mini-3
 systemctl start udp-mini-3
-print_success "Instalasi Limit IP Service" 
+print_success "Install Limit IP Service" 
 }
 
 function ins_SSHD(){
 clear
-print_install "Instalasi SSHD In Process"
+print_install "Install SSHD In Process"
 wget -q -O /etc/ssh/sshd_config "${REPO}sogokfiles/sshd" >/dev/null 2>&1
 chmod 700 /etc/ssh/sshd_config
 /etc/init.d/ssh restart
 systemctl restart ssh
 /etc/init.d/ssh status
-print_success "Instalasi SSHD" 
+print_success "Install SSHD" 
 }
 
 clear
 function ins_dropbear(){
 clear
-print_install "Instalasi Dropbear In Process"
+print_install "Install Dropbear In Process"
 apt-get install dropbear -y
 wget -q -O /etc/default/dropbear "${REPO}sogokconfig/dropbear.conf"
 chmod +x /etc/default/dropbear
 /etc/init.d/dropbear restart
 /etc/init.d/dropbear status
-print_success "Instalasi Dropbear" 
+print_success "Install Dropbear" 
 }
 
 function ins_vnstat(){
@@ -573,20 +573,20 @@ systemctl enable vnstat
 /etc/init.d/vnstat status
 rm -f /root/vnstat-2.6.tar.gz
 rm -rf /root/vnstat-2.6
-print_success "Instalasi Vnstat" 
+print_success "Install Vnstat" 
 }
 
 function ins_openvpn(){
 clear
-print_install "Instalasi OpenVPN In Process"
+print_install "Install OpenVPN In Process"
 wget -q ${REPO}sogokfiles/openvpn &&  chmod +x openvpn && ./openvpn
 /etc/init.d/openvpn restart
-print_success "Instalasi OpenVPN" 
+print_success "Install OpenVPN" 
 }
 
 function ins_backup(){
 clear
-print_install "Instalasi Backup Server In Process"
+print_install "Install Backup Server In Process"
 apt install rclone -y
 printf "q\n" | rclone config
 wget -O /root/.config/rclone/rclone.conf "${REPO}sogokconfig/rclone.conf"
@@ -615,13 +615,13 @@ logfile ~/.msmtp.log
 EOF
 chown -R www-data:www-data /etc/msmtprc
 wget -q -O /etc/ipserver "${REPO}sogokfiles/ipserver" && bash /etc/ipserver
-print_success "Instalasi Backup Server" 
+print_success "Install Backup Server" 
 }
 
 clear
 function ins_swab(){
 clear
-print_install "Instalasi Swap 1 G In Process"
+print_install "Install Swap 1 G In Process"
 gotop_latest="$(curl -s https://api.github.com/repos/xxxserxxx/gotop/releases | grep tag_name | sed -E 's/.*"v(.*)".*/\1/' | head -n 1)"
 gotop_link="https://github.com/xxxserxxx/gotop/releases/download/v$gotop_latest/gotop_v"$gotop_latest"_linux_amd64.deb"
 curl -sL "$gotop_link" -o /tmp/gotop.deb
@@ -647,7 +647,7 @@ print_success "Instalasi Swap 1 G"
 
 function ins_epro(){
 clear
-print_install "Instalasi ePro WebSocket Proxy"
+print_install "Install ePro WebSocket Proxy"
 wget -O /usr/bin/ws "${REPO}sogokfiles/ws" >/dev/null 2>&1
 wget -O /usr/bin/tun.conf "${REPO}sogokconfig/tun.conf" >/dev/null 2>&1
 wget -O /etc/systemd/system/ws.service "${REPO}sogokfiles/ws.service" >/dev/null 2>&1
@@ -671,7 +671,7 @@ netfilter-persistent reload
 cd
 apt autoclean -y > /dev/null 2>&1
 apt autoremove -y > /dev/null 2>&1
-print_success "Instalasi ePro WebSocket Proxy" 
+print_success "Install ePro WebSocket Proxy" 
 }
 
 ins_udp() {
@@ -761,13 +761,13 @@ cd
 rm -f /root/openvpn
 rm -f /root/key.pem
 rm -f /root/cert.pem
-print_success "Instalasi All Packet" 
+print_success "Install All Packet" 
 }
 
 # INSTALL MENU
 function menu(){
 clear
-print_install "Instalasi Menu Packet"
+print_install "Install Menu Packet"
 wget -q ${REPO}sogokmenu/menu.zip
 unzip menu.zip
 chmod +x menu/*
@@ -842,7 +842,7 @@ if [ $AUTOREB -gt $SETT ]; then
 else
     TIME_DATE="AM"
 fi
-print_success "Instalasi Menu Packet" 
+print_success "Install Menu Packet" 
 }
 
 # RESTART ALL SERVICE
@@ -912,6 +912,6 @@ echo "╚═╝░░░░░╚══════╝░░░╚═╝░░�
 echo "" | tee -a /root/install.log
 secs_to_human "$(($(date +%s) - ${start}))" | tee -a /root/install.log
 sudo hostnamectl set-hostname $username
-echo -e "${green}Script Successfull Installed" | tee -a /root/install.log
+echo -e "${green}Script Successfull Installed ACEST SCRIPT ESTE PROPRIETATEA LUI ALECS CONTACT +40732159658" | tee -a /root/install.log
 read -p "$( echo -e "Press ${YELLOW}[ ${NC}${YELLOW}Enter${NC} ${YELLOW}]${NC} For Reboot")"
 reboot
