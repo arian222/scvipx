@@ -1,0 +1,123 @@
+#!/bin/bash
+# https://t.me/gemilangkinasih
+
+rm -rf "$0"
+
+REPO="https://raw.githubusercontent.com/arian222/scvipx/main/"
+wget -q -O /etc/systemd/system/limitvmess.service "${REPO}sogokfiles/limitvmess.service" && chmod +x limitvmess.service >/dev/null 2>&1
+wget -q -O /etc/systemd/system/limitvless.service "${REPO}sogokfiles/limitvless.service" && chmod +x limitvless.service >/dev/null 2>&1
+wget -q -O /etc/systemd/system/limittrojan.service "${REPO}sogokfiles/limittrojan.service" && chmod +x limittrojan.service >/dev/null 2>&1
+# wget -q -O /etc/systemd/system/limitshadowsocks.service "${REPO}sogokfiles/limitshadowsocks.service" && chmod +x limitshadowsocks.service >/dev/null 2>&1
+
+wget -q -O /etc/xray/limit.vmess "${REPO}sogokfiles/vmess" >/dev/null 2>&1
+wget -q -O /etc/xray/limit.vless "${REPO}sogokfiles/vless" >/dev/null 2>&1
+wget -q -O /etc/xray/limit.trojan "${REPO}sogokfiles/trojan" >/dev/null 2>&1
+# wget -q -O /etc/xray/limit.shadowsocks "${REPO}sogokfiles/shadowsocks" >/dev/null 2>&1
+
+chmod +x /etc/xray/limit.vmess
+chmod +x /etc/xray/limit.vless
+chmod +x /etc/xray/limit.trojan
+# chmod +x /etc/xray/limit.shadowsocks
+
+systemctl daemon-reload
+systemctl enable --now limitvmess
+systemctl enable --now limitvless
+systemctl enable --now limittrojan
+# systemctl enable --now limitshadowsocks
+
+# SERVICE LIMIT IP VMESS
+cat > /etc/systemd/system/vmip.service << EOF
+[Unit]
+Description=Set Up - By ALECS
+ProjectAfter=network.target
+
+[Service]
+WorkingDirectory=/root
+ExecStart=/usr/bin/bash vmess
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# SERVICE LIMIT IP VLESS
+cat > /etc/systemd/system/vlip.service << EOF
+[Unit]
+Description=Set Up - By ALECS
+ProjectAfter=network.target
+
+[Service]
+WorkingDirectory=/root
+ExecStart=/usr/bin/bash vless
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# SERVICE LIMIT TROJAN
+cat > /etc/systemd/system/vtrip.service << EOF
+[Unit]
+Description=Set Up - By ALECS
+ProjectAfter=network.target
+
+[Service]
+WorkingDirectory=/root
+ExecStart=/usr/bin/bash trojan
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# SERVICE LIMIT IPSSH
+cat > /etc/systemd/system/vsip.service << EOF
+[Unit]
+Description=Set Up - By ALECS
+ProjectAfter=network.target
+
+[Service]
+WorkingDirectory=/root
+ExecStart=/usr/bin/bash tendang
+Restart=always
+
+[Install] 
+WantedBy=multi-user.target
+EOF
+
+# SERVICE KEAMANAN AUTOREBOT
+cat > /etc/systemd/system/keamanan.service << EOF
+[Unit]
+Description=Set Up - By ALECS
+ProjectAfter=network.target
+
+[Service]
+WorkingDirectory=/root
+ExecStart=/usr/bin/bash keamanan
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+wget -q -O /usr/bin/vmess "${REPO}sogokfiles/vmessx" >/dev/null 2>&1
+wget -q -O /usr/bin/vless "${REPO}sogokfiles/vlessx" >/dev/null 2>&1
+wget -q -O /usr/bin/trojan "${REPO}sogokfiles/trojanx" >/dev/null 2>&1
+wget -q -O /usr/bin/tendang "${REPO}sogokfiles/tendang" >/dev/null 2>&1
+wget -q -O /usr/bin/keamanan "${REPO}sogokfiles/keamanan" >/dev/null 2>&1
+chmod +x /usr/bin/vmess
+chmod +x /usr/bin/vless
+chmod +x /usr/bin/trojan
+chmod +x /usr/bin/tendang
+chmod +x /usr/bin/keamanan
+
+# Instalasi fitur at untuk trial
+apt install at
+
+systemctl daemon-reload
+systemctl enable --now vsip
+systemctl enable --now vmip
+systemctl enable --now vlip
+systemctl enable --now vtrip
+systemctl enable --now keamanan
+rm -rf /root/fv-tunnel
