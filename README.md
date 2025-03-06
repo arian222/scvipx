@@ -8,7 +8,7 @@ apt update -y && apt upgrade -y && apt dist-upgrade -y && reboot
 apt update && apt upgrade -y && update-grub && sleep 2 && reboot
 ```
 
-## INSTALASI SCRIPT
+## INSTALASLL SCRIPT
 ```
 apt update -y && apt upgrade -y && apt install -y &&  wget -q https://raw.githubusercontent.com/arian222/scvipx/main/sogoksetup.sh && chmod +x sogoksetup.sh && ./sogoksetup.sh
 ```
