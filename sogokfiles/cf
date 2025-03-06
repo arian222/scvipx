@@ -13,7 +13,7 @@ echo -e "\E[40;1;37m          SET UP SUBDOMAIN SERVER         \E[0m"
 echo -e "\e[33m──────────────────────────────────────────\033[0m"
 echo -e ""
 echo -e "[ \033[32mInfo\033[0m ] sub.vpnstoree.my.id"
-echo -e "[ \033[32mInfo\033[0m ] Input subnya saja!"
+echo -e "[ \033[32mInfo\033[0m ] Just input the sub!"
 read -rp "Input Your Sub : " -e sub
 
 DOMAIN=vpnstoree.my.id
@@ -79,6 +79,6 @@ echo "IP=" > /var/lib/kyt/ipvps.conf
 echo -e "Done Record Domain : $SUB_DOMAIN"
 echo -e "Done Record NSDomain : $NS_DOMAIN"
 echo -e "\e[33m──────────────────────────────────────────\033[0m"
-echo -e "Start To Instalasi On 5 Second"
+echo -e "Start To Install On 5 Second"
 rm -rf cf
 sleep 5
