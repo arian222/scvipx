@@ -1,0 +1,129 @@
+#!/bin/bash
+# https://t.me/gemilangkinasih
+
+function send-log() {
+CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+domain=$(cat /etc/xray/domain)
+TIME="10"
+URL="https://api.telegram.org/bot$KEY/sendMessage"
+TEXT="
+──────────────────────
+🚫 Notifikasi Limit Quota TROJAN
+──────────────────────
+<code>User  :</code> <code>$user</code>
+<code>Usage :</code> <code>$total</code>
+<code>Limit :</code> <code>$total2</code>
+<code>Host  :</code> <code>$domain</code>
+────────────────────── 
+Buy Add Quota / Extend To Unlock
+────────────────────── "
+
+curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" $URL >/dev/null
+}
+
+function con() {
+    local -i bytes=$1
+    if [[ $bytes -lt 1024 ]]; then
+        echo "${bytes} B"
+    elif [[ $bytes -lt 1048576 ]]; then
+        echo "$(( (bytes + 1023)/1024 )) KB"
+    elif [[ $bytes -lt 1073741824 ]]; then
+        echo "$(( (bytes + 1048575)/1048576 )) MB"
+    else
+        echo "$(( (bytes + 1073741823)/1073741824 )) GB"
+    fi
+}
+
+while true; do
+    echo "Memulai proses monitoring TROJAN."
+    sleep 30
+
+    data=($(cat /etc/xray/config.json | grep '^#!' | cut -d ' ' -f 2 | sort | uniq))
+    if [[ ! -e /etc/limit/trojan ]]; then
+        mkdir -p /etc/limit/trojan
+    fi
+
+    for user in "${data[@]}"; do
+        echo "Proses menjalankan username: $user."
+        xray api stats --server=127.0.0.1:10000 -name "user>>>${user}>>>traffic>>>downlink" >& /tmp/${user}
+        getThis=$(cat /tmp/${user} | awk '{print $1}')
+
+        if [[ ${getThis} != "failed" ]]; then
+            downlink=$(xray api stats --server=127.0.0.1:10000 -name "user>>>${user}>>>traffic>>>downlink" | grep -w "value" | awk '{print $2}' | cut -d '"' -f2)
+            if [ -e /etc/limit/trojan/${user} ]; then
+                plus2=$(cat /etc/limit/trojan/${user})
+                plus3=$(( ${downlink} + ${plus2} ))
+                echo "${plus3}" > /etc/limit/trojan/"${user}"
+                xray api stats --server=127.0.0.1:10000 -name "user>>>${user}>>>traffic>>>downlink" -reset >/dev/null 2>&1
+            else
+                echo "${downlink}" > /etc/limit/trojan/"${user}"
+                xray api stats --server=127.0.0.1:10000 -name "user>>>${user}>>>traffic>>>downlink" -reset >/dev/null 2>&1
+            fi
+        else
+            echo "Gagal mendapatkan data untuk user: $user"
+        fi
+
+        echo "Lanjut."
+        sleep 2
+    done
+
+    for user in "${data[@]}"; do
+        if [[ -e /etc/trojan/${user} ]]; then
+            checkLimit=$(cat /etc/trojan/${user})
+        else
+            checkLimit=536870912000
+            echo "536870912000" > /etc/trojan/${user}
+        fi
+
+        if [[ "$checkLimit" -eq 0 ]]; then
+            checkLimit=536870912000
+            echo "536870912000" > /etc/trojan/${user}
+        fi
+
+        if [ -e /etc/limit/trojan/${user} ]; then
+            Usage=$(cat /etc/limit/trojan/${user})
+            total=$(con ${Usage})
+            total2=$(con ${checkLimit})
+
+            echo "Memproses User : [Usage: $total, Limit: $total2] $user"
+            if [[ ${Usage} -gt ${checkLimit} ]]; then
+                exp=$(grep -w "^#! $user" "/etc/xray/config.json" | cut -d ' ' -f 3 | sort | uniq)
+                uuid=$(grep -w "^#! $user $exp" -A 1 "/etc/xray/config.json" | awk -F'"' '/"password":/ {print $4}' | sort | uniq)
+                if [[ -z $exp || -z $uuid ]]; then
+                    echo "User $user memiliki exp atau UUID kosong. Melewati."
+                    sleep 5
+                    continue
+                fi
+exp=$(grep -wE "^#! $user" "/etc/xray/config.json" | cut -d ' ' -f 3 | sort | uniq)
+uuid=$(grep -w "^#! $user $exp" -A 1 "/etc/xray/config.json" | awk -F'"' '/"password":/ {print $4}' | sort | uniq)
+uuid2=$(grep -w "^#! $user $exp" -A 1 "/etc/xray/config.json" | awk -F'"' '/"password":/ {print $4}' | sed 's/.*\(LOCKED\)/\1/' | sort | uniq)
+
+if [[ "$uuid2" == "LOCKED" ]]; then
+    echo -e "Account $user has been locked, melewati proses."
+    continue
+fi
+
+sed -i "/^#! $user $exp/,/^},{/d" /etc/xray/config.json
+sed -i "/^### $user/d" /etc/trojan/.trojan.db
+sed -i '/#trojanws$/a\#! '"$user $exp"'\
+},{"password": "'""$uuid"LOCKED"'","email" : "'""$user""'"' /etc/xray/config.json
+sed -i '/#trojangrpc$/a\#! '"$user $exp"'\
+},{"password": "'""$uuid"LOCKED"'","email" : "'""$user""'"' /etc/xray/config.json
+                echo "0" > "/etc/limit/trojan/${user}"
+                send-log
+                echo "User $user melebihi batas. Notifikasi berhasil dikirim!"
+                systemctl restart xray
+                sleep 15
+            else
+                echo "User $user masih dalam batas penggunaan."
+            fi
+        else
+            echo "Data $user tidak ditemukan."
+        fi
+        echo "Next."
+        sleep 2
+    done
+    echo "Siklus monitoring selesai. sleep 120 detik!"
+    sleep 120
+done

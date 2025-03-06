@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# Fungsi untuk mengirim notifikasi ke Telegram
+function send_log(){
+CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+domain=$(cat /etc/xray/domain)
+TIME="10"
+URL="https://api.telegram.org/bot$KEY/sendMessage"
+TEXT="
+──────────────────────
+🚫 Notifikasi Warning Server
+──────────────────────
+<code>RAM  :</code> <code>$1%</code>
+<code>Disk :</code> <code>$2%</code>
+<code>Host :</code> <code>$domain</code>
+──────────────────────
+Login Server Untuk Monitoring
+──────────────────────"
+
+curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" $URL >/dev/null
+}
+
+# Mengambil informasi penggunaan CPU, RAM, Disk, dan Swap
+cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2 + $4}')
+ram_usage=$(free | awk '/Mem:/ {printf "%.0f", $3/$2 * 100}')
+disk_usage=$(df -h / | awk '/\// {print $5}' | sed 's/%//')
+
+# Threshold untuk peringatan
+setmax=90
+
+# Logika untuk mengecek kondisi dan mengirim notifikasi
+if (( ram_usage >= setmax )); then
+    echo "Warning: RAM usage is high ($ram_usage%)"
+    send_log "$ram_usage" "$disk_usage"
+    sleep 10
+    reboot
+elif (( disk_usage >= setmax )); then
+    echo "Warning: Disk usage is high ($disk_usage%)"
+    send_log "$ram_usage" "$disk_usage"
+    sleep 10
+    reboot
+else
+    echo "SYSTEM OK: RAM=${ram_usage}%, DISK=${disk_usage}%"
+fi
+# Tambahkan jeda untuk mengurangi beban sistem
+sleep 120

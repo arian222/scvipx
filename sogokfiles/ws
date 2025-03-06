@@ -1,0 +1,219 @@
+#!/usr/bin/python3
+
+import sys
+import time
+import yaml
+import signal
+import select
+import getopt
+import socket
+import threading
+
+PASS = ''
+BUFLEN = 4096 * 4
+TIMEOUT = 60
+RESPONSE = b'HTTP/1.1 101 <b><font color="green">SERVER CONNECTED</font>\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: foo\r\n\r\n'
+
+class Server(threading.Thread):
+    def __init__(self, listen_port, target_host, target_port, verbose):
+        threading.Thread.__init__(self)
+        self.listen_port = listen_port
+        self.target_host = target_host
+        self.target_port = target_port
+        self.verbose = verbose
+        self.running = False
+        self.connections = []
+        self.connections_lock = threading.Lock()
+        self.sock = None
+
+    def run(self):
+        try:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.sock.bind(("0.0.0.0", self.listen_port))
+            self.sock.listen(5)
+            self.sock.settimeout(TIMEOUT)
+            self.running = True
+            self.log(f"Server started on port {self.listen_port} -> Target: {self.target_host}:{self.target_port}")
+
+            while self.running:
+                try:
+                    client_socket, addr = self.sock.accept()
+                    self.log(f"Accepted connection from {addr}")
+                    handler = ConnectionHandler(client_socket, self.target_host, self.target_port, self.listen_port, self.verbose)
+                    handler.start()
+                    self.add_connection(handler)
+                except socket.timeout:
+                    continue
+                    
+                except Exception as e:
+                    self.log(f"[ERROR] Error accepting connection: {e}")
+        except Exception as e:
+            self.log(f"[ERROR] Server error: {e}")
+        finally:
+            self.close()
+
+    def add_connection(self, conn):
+        with self.connections_lock:
+            self.connections.append(conn)
+
+    def remove_connection(self, conn):
+        with self.connections_lock:
+            if conn in self.connections:
+                self.connections.remove(conn)
+
+    def close(self):
+        self.running = False
+        if self.sock:
+            try:
+                self.sock.close()
+            except Exception as e:
+                self.log(f"[ERROR] Failed to close socket: {e}")
+
+        with self.connections_lock:
+            for conn in self.connections:
+                conn.close()
+        self.log(f"Server on port {self.listen_port} stopped.")
+
+    def log(self, message):
+        if self.verbose:
+            print(f"[Server {self.listen_port}] {message}")
+
+
+class ConnectionHandler(threading.Thread):
+    def __init__(self, client_socket, target_host, target_port, listen_port, verbose):
+        threading.Thread.__init__(self)
+        self.client_socket = client_socket
+        self.target_host = target_host
+        self.target_port = target_port
+        self.listen_port = listen_port
+        self.verbose = verbose
+        self.target_socket = None
+        self.client_closed = False
+        self.target_closed = True
+
+    def close(self):
+        if not self.client_closed:
+            try:
+                self.client_socket.shutdown(socket.SHUT_RDWR)
+                self.client_socket.close()
+            except:
+                pass
+            finally:
+                self.client_closed = True
+
+        if not self.target_closed:
+            try:
+                self.target_socket.shutdown(socket.SHUT_RDWR)
+                self.target_socket.close()
+            except:
+                pass
+            finally:
+                self.target_closed = True
+
+    def run(self):
+        try:
+            self.target_socket = socket.create_connection((self.target_host, self.target_port), timeout=TIMEOUT)
+            self.target_closed = False
+            self.log(f"Connected to target {self.target_host}:{self.target_port}")
+            self.client_socket.sendall(RESPONSE)
+            self.forward_data()
+        except Exception as e:
+            self.log(f"[ERROR] Error handling connection: {e}")
+        finally:
+            self.close()
+
+    def forward_data(self):
+        sockets = [self.client_socket, self.target_socket]
+        while True:
+            try:
+                ready_to_read, _, _ = select.select(sockets, [], [], TIMEOUT)
+                for sock in ready_to_read:
+                    data = sock.recv(BUFLEN)
+                    if data:
+                        if sock is self.client_socket:
+                            self.target_socket.sendall(data)
+                            self.log(f":{self.listen_port}: >>>> {len(data)} bytes sent")
+                        else:
+                            self.client_socket.sendall(data)
+                            self.log(f":{self.listen_port}: <<<< {len(data)} bytes received")
+                    else:
+                        return
+            except socket.timeout:
+                self.log("[ERROR] Forwarding timeout!")
+                return
+            except Exception as e:
+                self.log(f"[ERROR] Forwarding error: {e}")
+                return
+
+    def log(self, message):
+        if self.verbose:
+            print(f"[Connection {self.target_host}:{self.target_port}] {message}")
+
+
+def parse_args(argv):
+    config_file = None
+    try:
+        opts, _ = getopt.getopt(argv, "f:", ["file="])
+        for opt, arg in opts:
+            if opt in ("-f", "--file"):
+                config_file = arg
+    except:
+        print("Usage: python3 ws -f <tun.conf>")
+        sys.exit(2)
+    return config_file
+
+
+def load_config(config_file):
+    try:
+        with open(config_file, "r") as file:
+            return yaml.safe_load(file)
+    except Exception as e:
+        print(f"[ERROR] Failed to load configuration file: {e}")
+        sys.exit(1)
+
+
+def signal_handler(sig, frame):
+    print("\nReceived interrupt signal. Stopping servers...")
+    for server in servers:
+        server.close()
+    sys.exit(0)
+
+
+def main(config_file):
+    global servers
+    config = load_config(config_file)
+    verbose = config.get("verbose", 0)
+    listeners = config.get("listen", [])
+
+    if not listeners:
+        print("[ERROR] No listening configuration found.")
+        sys.exit(1)
+
+    servers = []
+    for listener in listeners:
+        target_host = listener.get("target_host")
+        target_port = listener.get("target_port")
+        listen_port = listener.get("listen_port")
+
+        if not target_host or not target_port or not listen_port:
+            print(f"[ERROR] Invalid configuration entry: {listener}")
+            continue
+
+        server = Server(listen_port, target_host, target_port, verbose)
+        servers.append(server)
+        server.start()
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
+    while True:
+        time.sleep(3)
+
+
+if __name__ == "__main__":
+    config_file = parse_args(sys.argv[1:])
+    if not config_file:
+        print("Usage: python3 ws -f <tun.conf>")
+        sys.exit(1)
+    main(config_file)

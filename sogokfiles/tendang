@@ -1,0 +1,187 @@
+#!/bin/bash
+# https://t.me/gemilangkinasih
+
+function send_log(){
+CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+domain=$(cat /etc/xray/domain)
+TIME="10"
+URL="https://api.telegram.org/bot$KEY/sendMessage"
+TEXT="
+──────────────────────
+🚫 Notifikasi Multilogin SSH
+──────────────────────
+<code>User  :</code> <code>$1</code>
+<code>Login :</code> <code>$2 IP</code>
+<code>Limit :</code> <code>$3 IP</code>
+<code>Host  :</code> <code>$domain</code>
+────────────────────── 
+Unlock User Otomatis 15 Menit
+────────────────────── "
+
+curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" $URL >/dev/null
+}
+
+function send_logx(){
+CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+domain=$(cat /etc/xray/domain)
+TIME="10"
+URL="https://api.telegram.org/bot$KEY/sendMessage"
+TEXT="
+──────────────────────
+🚫 Notifikasi Multilogin SSH
+──────────────────────
+<code>User  :</code> <code>$1</code>
+<code>Login :</code> <code>$2 IP</code>
+<code>Limit :</code> <code>$3 IP</code>
+<code>Host  :</code> <code>$domain</code>
+────────────────────── 
+Locked User 3X Multilogin
+────────────────────── "
+
+curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" $URL >/dev/null
+}
+
+# Menentukan file log berdasarkan OS yang digunakan
+if [ -e "/var/log/auth.log" ]; then
+    OS=1;
+    LOG="/var/log/auth.log";
+elif [ -e "/var/log/secure" ]; then
+    OS=2;
+    LOG="/var/log/secure";
+else
+    echo "Log file tidak ditemukan.";
+    exit 1;
+fi
+
+while true; do
+    echo "Memulai proses monitoring SSHWS."
+    # Mendapatkan daftar pengguna
+    cat /etc/passwd | grep "/home/" | cut -d":" -f1 > /tmp/userssh.txt
+    username1=( `cat "/tmp/userssh.txt" `);
+    i="0";
+    for user in "${username1[@]}"
+    do
+        username[$i]=`echo $user | sed 's/'\''//g'`;
+        jumlah[$i]=0;
+        i=$i+1;
+    done
+
+    # Array untuk menyimpan kombinasi unik user dan IP
+    declare -A login_session
+
+    # Memproses pengguna dari file log Dropbear
+    grep -i "Password auth succeeded" "$LOG" | grep -i dropbear > /tmp/log-db.txt
+    for PID in $(ps aux | grep -i dropbear | awk '{print $2}'); do
+        if grep -q "dropbear\[$PID\]" /tmp/log-db.txt; then
+            USER=$(grep "dropbear\[$PID\]" /tmp/log-db.txt | awk '{print $10}' | sed 's/'\''//g')
+            IP=$(grep "dropbear\[$PID\]" /tmp/log-db.txt | awk '{print $12}')
+
+            if [[ -z "${login_session[$USER-$IP]}" ]]; then
+                for i in "${!username[@]}"; do
+                    if [[ "${username[$i]}" == "$USER" ]]; then
+                        jumlah[$i]=$((jumlah[$i] + 1))
+                        pid[$i]+="$PID "
+                    fi
+                done
+                login_session["$USER-$IP"]=1
+            fi
+        fi
+    done
+
+    # Memproses pengguna dari file log SSHD
+    grep -i "Accepted password for" "$LOG" | grep -i sshd > /tmp/log-db.txt
+    for PID in $(ps aux | grep "\[priv\]" | awk '{print $2}'); do
+        if grep -q "sshd\[$PID\]" /tmp/log-db.txt; then
+            USER=$(grep "sshd\[$PID\]" /tmp/log-db.txt | awk '{print $9}')
+            IP=$(grep "sshd\[$PID\]" /tmp/log-db.txt | awk '{print $11}')
+
+            if [[ -z "${login_session[$USER-$IP]}" ]]; then
+                for i in "${!username[@]}"; do
+                    if [[ "${username[$i]}" == "$USER" ]]; then
+                        jumlah[$i]=$((jumlah[$i] + 1))
+                        pid[$i]+="$PID "
+                    fi
+                done
+                login_session["$USER-$IP"]=1
+            fi
+        fi
+    done
+
+    for i in ${!username[*]}
+    do
+        if [ -e "/etc/kyt/limit/ssh/ip/${username[$i]}" ]; then
+            LIMIT=$(cat /etc/kyt/limit/ssh/ip/${username[$i]})
+            MAX=$((LIMIT + 1))
+        else
+            MAX=2
+            echo "2" > /etc/kyt/limit/ssh/ip/${username[$i]}
+        fi
+
+        if [ "$MAX" -eq 0 ]; then
+            MAX=2
+            echo "2" > /etc/kyt/limit/ssh/ip/${username[$i]}
+        fi
+
+        STATUS=$(passwd -S ${username[$i]} | awk '{print $2}')
+        if [ "$STATUS" == "L" ]; then
+        echo "User ${username[$i]} terkunci, melewati proses."
+        continue
+        fi
+
+        echo "Memproses User : [Login: ${jumlah[$i]}, Limit: $((MAX - 1))] ${username[$i]}"
+        if [ ${jumlah[$i]} -gt $MAX ]; then
+
+            if [[ $(grep -c "${username[$i]}" /root/lockipssh.txt) -gt 3 ]]; then
+            echo "User ${username[$i]} melebihi batas login, mengunci akun."
+            passwd -l ${username[$i]};
+            sed -i "/${username[$i]}/d" /root/lockipxray.txt
+            send_logx "${username[$i]}" "${jumlah[$i]}" "$((MAX - 1))"
+            echo "Notifikasi terkirim ke telegram."
+
+            if [ ${jumlah[$i]} -gt 5 ]; then
+            truncate -s 0 /var/log/auth.log
+            systemctl restart ssh > /dev/null 2>&1;
+            systemctl restart sshd > /dev/null 2>&1;
+            # systemctl restart ws > /dev/null 2>&1;
+            fi
+
+            if [ $OS -eq 1 ]; then
+                systemctl restart ssh > /dev/null 2>&1;
+            elif [ $OS -eq 2 ]; then
+                systemctl restart sshd > /dev/null 2>&1;
+            fi
+
+            continue
+            fi
+
+            echo "User ${username[$i]} melebihi batas login, unlock 15 menit."
+            passwd -l ${username[$i]};
+            echo "unlocklimitip ssh ${username[$i]}" | at now + 15 minutes &> /dev/null
+            echo "${username[$i]}" >> /tmp/lockipssh.txt
+            send_log "${username[$i]}" "${jumlah[$i]}" "$((MAX - 1))"
+            echo "Notifikasi terkirim ke telegram."
+
+            if [ ${jumlah[$i]} -gt 5 ]; then
+            truncate -s 0 /var/log/auth.log
+            systemctl restart ssh > /dev/null 2>&1;
+            systemctl restart sshd > /dev/null 2>&1;
+            # systemctl restart ws > /dev/null 2>&1;
+            fi
+
+            if [ $OS -eq 1 ]; then
+                systemctl restart ssh > /dev/null 2>&1;
+            elif [ $OS -eq 2 ]; then
+                systemctl restart sshd > /dev/null 2>&1;
+            fi
+
+            jumlah[$i]=0;
+            pid[$i]="";
+        fi
+        sleep 2
+    done
+
+    echo "Siklus monitoring selesai. sleep 120 detik!"
+    sleep 120
+done

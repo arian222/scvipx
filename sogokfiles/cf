@@ -1,0 +1,84 @@
+#!/bin/bash
+# https://t.me/gemilangkinasih
+
+rm -rf "$0"
+
+apt install jq curl -y
+rm -rf /root/xray/scdomain
+mkdir -p /root/xray
+
+clear
+echo -e "\e[33m──────────────────────────────────────────\033[0m"
+echo -e "\E[40;1;37m          SET UP SUBDOMAIN SERVER         \E[0m"
+echo -e "\e[33m──────────────────────────────────────────\033[0m"
+echo -e ""
+echo -e "[ \033[32mInfo\033[0m ] sub.vpnstoree.my.id"
+echo -e "[ \033[32mInfo\033[0m ] Input subnya saja!"
+read -rp "Input Your Sub : " -e sub
+
+DOMAIN=vpnstoree.my.id
+SUB_DOMAIN=${sub}.vpnstoree.my.id
+NS_DOMAIN="dns.${SUB_DOMAIN}"
+CF_ID=none@gmail.com
+CF_KEY=none
+set -euo pipefail
+IP=$(curl -sS ifconfig.me);
+
+echo "Updating DNS for ${SUB_DOMAIN}..."
+ZONE=$(curl -sLX GET "https://api.cloudflare.com/client/v4/zones?name=${DOMAIN}&status=active" \
+-H "X-Auth-Email: ${CF_ID}" \
+-H "X-Auth-Key: ${CF_KEY}" \
+-H "Content-Type: application/json" | jq -r .result[0].id)
+RECORD=$(curl -sLX GET "https://api.cloudflare.com/client/v4/zones/${ZONE}/dns_records?name=${SUB_DOMAIN}" \
+-H "X-Auth-Email: ${CF_ID}" \
+-H "X-Auth-Key: ${CF_KEY}" \
+-H "Content-Type: application/json" | jq -r .result[0].id)
+if [[ "${#RECORD}" -le 10 ]]; then
+RECORD=$(curl -sLX POST "https://api.cloudflare.com/client/v4/zones/${ZONE}/dns_records" \
+-H "X-Auth-Email: ${CF_ID}" \
+-H "X-Auth-Key: ${CF_KEY}" \
+-H "Content-Type: application/json" \
+--data '{"type":"A","name":"'${SUB_DOMAIN}'","content":"'${IP}'","ttl":120,"proxied":false}' | jq -r .result.id)
+fi
+RESULT=$(curl -sLX PUT "https://api.cloudflare.com/client/v4/zones/${ZONE}/dns_records/${RECORD}" \
+-H "X-Auth-Email: ${CF_ID}" \
+-H "X-Auth-Key: ${CF_KEY}" \
+-H "Content-Type: application/json" \
+--data '{"type":"A","name":"'${SUB_DOMAIN}'","content":"'${IP}'","ttl":120,"proxied":false}')
+
+echo "Updating DNS NS for ${NS_DOMAIN}..."
+ZONE=$(curl -sLX GET "https://api.cloudflare.com/client/v4/zones?name=${DOMAIN}&status=active" \
+-H "X-Auth-Email: ${CF_ID}" \
+-H "X-Auth-Key: ${CF_KEY}" \
+-H "Content-Type: application/json" | jq -r .result[0].id)
+RECORD=$(curl -sLX GET "https://api.cloudflare.com/client/v4/zones/${ZONE}/dns_records?name=${NS_DOMAIN}" \
+-H "X-Auth-Email: ${CF_ID}" \
+-H "X-Auth-Key: ${CF_KEY}" \
+-H "Content-Type: application/json" | jq -r .result[0].id)
+if [[ "${#RECORD}" -le 10 ]]; then
+RECORD=$(curl -sLX POST "https://api.cloudflare.com/client/v4/zones/${ZONE}/dns_records" \
+-H "X-Auth-Email: ${CF_ID}" \
+-H "X-Auth-Key: ${CF_KEY}" \
+-H "Content-Type: application/json" \
+--data '{"type":"NS","name":"'${NS_DOMAIN}'","content":"'${SUB_DOMAIN}'","ttl":120,"proxied":false}' | jq -r .result.id)
+fi
+RESULT=$(curl -sLX PUT "https://api.cloudflare.com/client/v4/zones/${ZONE}/dns_records/${RECORD}" \
+-H "X-Auth-Email: ${CF_ID}" \
+-H "X-Auth-Key: ${CF_KEY}" \
+-H "Content-Type: application/json" \
+--data '{"type":"NS","name":"'${NS_DOMAIN}'","content":"'${SUB_DOMAIN}'","ttl":120,"proxied":false}')
+
+echo "$SUB_DOMAIN" > /root/scdomain 
+echo "$SUB_DOMAIN" > /etc/xray/scdomain 
+echo "$SUB_DOMAIN" > /etc/xray/domain 
+echo "$SUB_DOMAIN" > /root/domain 
+echo "$NS_DOMAIN" > /etc/xray/nsdomain 
+echo "$NS_DOMAIN" > /etc/xray/dns 
+echo "$NS_DOMAIN" > /root/nsdomain 
+echo "IP=" > /var/lib/kyt/ipvps.conf
+echo -e "Done Record Domain : $SUB_DOMAIN"
+echo -e "Done Record NSDomain : $NS_DOMAIN"
+echo -e "\e[33m──────────────────────────────────────────\033[0m"
+echo -e "Start To Instalasi On 5 Second"
+rm -rf cf
+sleep 5

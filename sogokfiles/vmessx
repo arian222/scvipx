@@ -1,0 +1,143 @@
+#!/bin/bash
+# https://t.me/gemilangkinasih
+
+function send_log() {
+CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+domain=$(cat /etc/xray/domain)
+TIME="10"
+URL="https://api.telegram.org/bot$KEY/sendMessage"
+TEXT="
+──────────────────────
+🚫 Notifikasi Multilogin VMESS
+──────────────────────
+<code>User  :</code> <code>$akun</code>
+<code>Login :</code> <code>$jum2</code>
+<code>Limit :</code> <code>$((MAX - 1))</code>
+<code>Host  :</code> <code>$domain</code>
+────────────────────── 
+Unlock User Otomatis 15 Menit
+────────────────────── "
+
+curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" $URL >/dev/null
+}
+
+function send_logx() {
+CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+domain=$(cat /etc/xray/domain)
+TIME="10"
+URL="https://api.telegram.org/bot$KEY/sendMessage"
+TEXT="
+──────────────────────
+🚫 Notifikasi Multilogin VMESS
+──────────────────────
+<code>User  :</code> <code>$akun</code>
+<code>Login :</code> <code>$jum2</code>
+<code>Limit :</code> <code>$((MAX - 1))</code>
+<code>Host  :</code> <code>$domain</code>
+────────────────────── 
+Locked User 3X Multilogin
+────────────────────── "
+
+curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" $URL >/dev/null
+}
+
+data=( `cat /etc/xray/config.json | grep '###' | cut -d ' ' -f 2 | sort | uniq`)
+
+# Read log data once and process it
+log_data=$(cat /var/log/xray/access.log | tail -n 500)
+ip_data=($(echo "$log_data" | grep email | grep "accepted" | awk -F "from " '{print $2}' | sed 's/tcp://g' | sed 's/\[.*//g' | cut -d: -f1 | sort | uniq))
+
+# Loop through each user
+echo "Memulai proses monitoring VMESS."
+for akun in "${data[@]}"; do
+    echo -n > /tmp/ipvmessx.txt
+    for ip in "${ip_data[@]}"; do
+        # Extract the first two segments of the IP
+        ip_prefiks=$(echo "$ip" | cut -d "." -f1,2)
+
+        # Check if this IP belongs to the current user (only need to search through the preloaded log data)
+        jum=$(echo "$log_data" | grep -w "$akun" | grep -w "$ip_prefiks" | grep "accepted" | awk -F "from " '{print $2}' | sed 's/tcp://g' | cut -d ":" -f1 | cut -d "." -f1,2 | sort | uniq)
+        if [[ "$jum" == "$ip_prefiks" ]]; then
+            echo "$jum" >> /tmp/ipvmessx.txt
+        fi
+    done
+    
+    jum=$(cat /tmp/ipvmessx.txt)
+    if [[ -n "$jum" ]]; then
+         if [ -e "/etc/kyt/limit/vmess/ip/${akun}" ]; then
+            iplimit=$(cat /etc/kyt/limit/vmess/ip/${akun})
+            MAX=$((iplimit + 1))
+        else
+            MAX=2
+            echo "2" > /etc/kyt/limit/vmess/ip/${akun}
+        fi
+
+        if [ "$MAX" -eq 0 ]; then
+            MAX=2
+            echo "2" > /etc/kyt/limit/vmess/ip/${akun}
+        fi
+        jum2=$(sort /tmp/ipvmessx.txt | uniq | wc -l)
+        echo "Memproses User : [Login: $jum2, Limit: $((MAX - 1))] $akun"
+        # Check if the number of logged-in IPs exceeds the limit
+        if [ "$jum2" -gt "$MAX" ]; then
+            exp=$(grep -w "^### $akun" "/etc/xray/config.json" | cut -d ' ' -f 3 | sort | uniq)
+            uuid=$(grep -w "^### $akun $exp" -A 1 "/etc/xray/config.json" | awk -F'"' '/"id":/ {print $4}' | sort | uniq)
+            if [[ -z $exp || -z $uuid ]]; then
+                continue  # Skip if exp or uuid is empty
+            fi
+
+            if [[ $(grep -c "$akun" /tmp/lockipxray.txt) -gt 3 ]]; then
+exp=$(grep -wE "^### $akun" "/etc/xray/config.json" | cut -d ' ' -f 3 | sort | uniq)
+uuid=$(grep -w "^### $akun $exp" -A 1 "/etc/xray/config.json" | awk -F'"' '/"id":/ {print $4}' | sort | uniq)
+uuid2=$(grep -w "^### $akun $exp" -A 1 "/etc/xray/config.json" | awk -F'"' '/"id":/ {print $4}' | sed 's/.*\(LOCKED\)/\1/' | sort | uniq)
+
+if [[ "$uuid2" == "LOCKED" ]]; then
+    echo -e "Account $akun has been locked, melewati proses."
+    continue
+fi
+
+echo "Locked user $akun 3X Multilogin"
+sed -i "/^### $akun $exp/,/^},{/d" /etc/xray/config.json
+sed -i "/^### $akun/d" /etc/vmess/.vmess.db
+sed -i '/#vmess$/a\### '"$akun $exp"'\
+},{"id": "'""$uuid"LOCKED"'","alterId": '"0"',"email": "'""$akun""'"' /etc/xray/config.json
+sed -i '/#vmessgrpc$/a\### '"$akun $exp"'\
+},{"id": "'""$uuid"LOCKED"'","alterId": '"0"',"email": "'""$akun""'"' /etc/xray/config.json
+truncate -s 0 /var/log/xray/access.log
+systemctl restart xray > /dev/null 2>&1
+sed -i "/$akun/d" /tmp/lockipxray.txt
+send_logx "$akun" "$jum2" "$((MAX - 1)),"
+                continue
+            fi
+
+exp=$(grep -wE "^### $akun" "/etc/xray/config.json" | cut -d ' ' -f 3 | sort | uniq)
+uuid=$(grep -w "^### $akun $exp" -A 1 "/etc/xray/config.json" | awk -F'"' '/"id":/ {print $4}' | sort | uniq)
+uuid2=$(grep -w "^### $akun $exp" -A 1 "/etc/xray/config.json" | awk -F'"' '/"id":/ {print $4}' | sed 's/.*\(LOCKED\)/\1/' | sort | uniq)
+
+if [[ "$uuid2" == "LOCKED" ]]; then
+    echo -e "Account $akun has been locked, melewati proses."
+    continue
+fi
+
+echo "Unlock user $akun dalam 15 menit."
+echo "unlocklimitip vmess $akun $exp $uuid" | at now + 15 minutes &> /dev/null
+sed -i "/^### $akun $exp/,/^},{/d" /etc/xray/config.json
+sed -i "/^### $akun/d" /etc/vmess/.vmess.db
+sed -i '/#vmess$/a\### '"$akun $exp"'\
+},{"id": "'""$uuid"LOCKED"'","alterId": '"0"',"email": "'""$akun""'"' /etc/xray/config.json
+sed -i '/#vmessgrpc$/a\### '"$akun $exp"'\
+},{"id": "'""$uuid"LOCKED"'","alterId": '"0"',"email": "'""$akun""'"' /etc/xray/config.json
+truncate -s 0 /var/log/xray/access.log
+systemctl restart xray > /dev/null 2>&1
+echo "$akun" >> /tmp/lockipxray.txt
+send_log "$akun" "$jum2" "$((MAX - 1)),"
+        fi
+    fi 
+    rm -rf /tmp/ipvmessx.txt
+    sleep 3
+done
+rm -rf /tmp/ipvmessx.txt
+echo "Siklus monitoring selesai. sleep 120 detik!"
+sleep 120
