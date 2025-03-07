@@ -1,5 +1,12 @@
 #!/bin/bash
-# https://t.me/Alecss12
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# System Request : Debian 9+/Ubuntu 18.04+/20+
+# Develovers » ALECS࿐
+# Email      » alecsalecs021@gmail.com
+# telegram   » https://t.me/alecss12
+# whatsapp   » wa.me/+40732159658
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ALECS࿐
 
 rm -rf "$0" 2>/dev/null
 rm -rf autoscript 2>/dev/null
